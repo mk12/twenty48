@@ -1,4 +1,4 @@
-;;; Copyright 2013 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.game
   "Defines the game screen, where all the fun happens."
@@ -14,6 +14,7 @@
 
 ;;;;; Grid
 
+;BAD
 (def final-score (atom 0))
 
 (defn make-grid
@@ -53,12 +54,30 @@
 
 (def cell-gap 10)
 
+(defn cell-dimension
+  "Calculates the size of a cell along one dimension when there are to be n
+  cells evenly spaced by cell-gap in a canvas with size canvas-dim."
+  [canvas-dim n]
+  (/ (- canvas-dim
+        (* (dec n) cell-gap))
+     n))
+
 (defn paint-canvas
   "Paints the grid in the canvas c with graphics context g."
   [grid c g]
-  (g/draw g
-          (g/circle (/ (s/width c) 2) (/ (s/height c) 2) 30)
-          (g/style :background :red)))
+  (let [side (:side grid)
+        cell-w (cell-dimension (s/width c) side)
+        cell-h (cell-dimension (s/height c) side)
+        mult-x (+ cell-w cell-gap)
+        mult-y (+ cell-h cell-gap)]
+    (.setColor g (seesaw.color/color "#bbb"))
+    (doseq [i (range side)
+            j (range side)]
+      (let [n (r/cell-at grid (r/coords->index grid i j))]
+        (when-not (zero? n)
+          (.fillRect g (* j mult-x) (* i mult-y) cell-w cell-h)
+          (.drawString g "sd" (+ (* j mult-x) (/ cell-w 2)) (+ (* i mult-y) (/ cell-h 2))))))))
+          ;; (.drawString g (str (r/cell-at grid (r/coords->index grid i j))) (* i 20) (* j 20)))))))
 
 (defn make-canvas
   "Creates the main canvas given a 2048 grid atom."

@@ -1,10 +1,10 @@
-;;; Copyright 2013 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.grid
   "Implements the 2048 grid model.")
 
-(defn make-grid
-  "Returns a grid with side length n filled with zeros."
+(defn empty-grid
+  "Returns a grid with side length n and filled with zeros."
   [n]
   {:side n :score 0 :cells (vec (repeat (* n n) 0))})
 
@@ -35,23 +35,24 @@
   (filter #(zero? (cell-at grid %))
           (range (n-cells grid))))
 
-(defn insert-number
+(defn insert-one-num
   "Inserts a number n in a random empty cell in the grid and returns the grid.
   If unsuccessful (no empty cells in the grid), returns nil."
   [grid n]
-  (let [inds (empty-cell-indices grid)]
-    (if (seq inds)
-      (-> grid
-          (assoc-in [:cells (rand-nth inds)] n)
-          (update-in [:score] + n)))))
+  (if-let [inds (seq (empty-cell-indices grid))]
+    (-> grid
+        (assoc-in [:cells (rand-nth inds)] n)
+        (update-in [:score] + n))))
 
 (defn insert-numbers
-  "Like insert-number, but inserts a collection of numbers."
+  "Inserts a colletion of numbers into empty cells in the grid by repeatedly
+  calling insert-one-num. Returns nil if the length of the numbers collection is
+  larger than the number of empty spaces in the grid."
   [grid numbers]
   (reduce
     (fn [g n]
       (if g
-        (insert-number g n)
+        (insert-one-num g n)
         (reduced nil)))
     grid
     numbers))
@@ -65,7 +66,7 @@
 
 (defn impasse?
   "Returns true if the grid is full and no moves are possible. Also returns true
-  when grid is nil."
+  when grid is nil because no move can be made on a nil grid."
   [grid]
   (or (not grid)
       (and (grid-full? grid)

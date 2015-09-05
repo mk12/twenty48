@@ -1,4 +1,4 @@
-;;; Copyright 2013 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.options
   "Defines the options screen, where the user can configure the game."

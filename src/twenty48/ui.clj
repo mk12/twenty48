@@ -1,47 +1,26 @@
 ;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
 
-(ns twenty48.common
-  "Implements some common functionality used app-wide."
+(ns twenty48.ui
   (:require [clojure.java.io :as io]
             [seesaw.core :as s]))
 
-(defn make-stack
-  ""
-  [& {:as views}]
-  )
+;;;;; Frame and views
 
-; (make-stack :game [make show]
-;             :options [make show]
-;             :game-over [make show])
+(defn frame
+  "Creates the application's one and only frame."
+  []
+  (s/frame :title "Twenty48"
+           :size [600 :by 700]
+           :on-close :exit))
 
-;;;;; Cards state
-
-(def cards (atom nil))
-
-(defn make-cards
-  "Creates a stack of cards and returns it after resetting the cards atom.
-  Accepts an even number of arguments where each pair is of the form :id panel."
-  [& pairs]
-  (reset! cards
-    (s/card-panel
-      :focusable? false
-      :items (map (fn [[id panel]] [panel id])
-                  (partition 2 pairs)))))
-
-(defn focus-card!
-  "Requests focus for the card with the given id in a card panel."
-  [cards id]
-  (let [css-id (keyword (str "#" (name id)))
-        card (s/select cards [css-id])]
-    (s/request-focus! card)))
-)
-(defn show-card!
-  "Shows the card with the given id."
-  [id]
-  (if-let [cs @cards]
-    (focus-card! (s/show-card! cs id) id)))
-
-;;;;; User interface
+(defn show-view!
+  "Gets the view with the given identifier from the system and shows it."
+  [sys id]
+  (let [view (get-in @sys [:story id])]
+    (s/config! (:frame @sys) :content view)
+    (s/request-focus! view)))
+  
+;;;;; User interface elements
 
 (defn label
   "Creates a label with the given text and font size. Extra arguments are passed
@@ -77,8 +56,8 @@
 
 (defn nav-button
   "Creates a button for navigating to the screen with the given identifer."
-  [id text]
-  (letfn [(action [_] (show-card! id))]
+  [sys id text]
+  (letfn [(action [_] (show-view! sys id))]
     (s/button :text text
               :size [80 :by 40]
               :listen [:action action])))
