@@ -20,13 +20,14 @@
 (defn make-grid
   "Creates a new empty grid according to the option values."
   []
-  (r/make-grid (:grid-size @o/options)))
+  (r/empty-grid (:grid-size @o/options)))
 
 (defn new-block
   "Returns a random new number to be added to the grid."
   []
   (let [exp (-> @o/options :largest-new rand-int inc)]
     (reduce * (repeat exp 2))))
+; TODO why not pow?
 
 (defn move-and-insert
   "Moves the grid in the direction dir and inserts numbers in empty cells of the

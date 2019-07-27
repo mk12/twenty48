@@ -2,22 +2,22 @@
 
 (ns user
   (:require [clojure.tools.namespace.repl :refer [refresh]]
-            [twenty48.core :as c]))
+            [twenty48.system :as s]))
 
 (def system nil)
 
 (defn init []
   (alter-var-root
     #'system
-    (constantly (c/system))))
+    (constantly (s/system))))
 
 (defn start []
-  (alter-var-root #'system c/start))
+  (alter-var-root #'system s/start))
 
 (defn stop []
   (alter-var-root
     #'system
-    #(when % (c/stop %))))
+    #(when % (s/stop %))))
 
 (defn go [] (init) (start))
 

@@ -34,7 +34,7 @@
   (let [css-id (keyword (str "#" (name id)))
         card (s/select cards [css-id])]
     (s/request-focus! card)))
-)
+
 (defn show-card!
   "Shows the card with the given id."
   [id]
