@@ -11,6 +11,24 @@
    :counter 0   ; counter for block IDs
    :blocks []}) ; active blocks
 
+(defn grid-from-2d-vec
+  "Creates a grid from a 2D vector of numbers (0 means empty)."
+  [matrix]
+  (let [side (count matrix)
+        nonzero-count (count (remove zero? (flatten matrix)))]
+    {:side side
+     :score 0
+     :counter nonzero-count
+     :blocks (->> matrix
+                  (map-indexed
+                   (fn [y row]
+                     (keep-indexed
+                      (fn [x value]
+                        (if-not (zero? value)
+                          {:id (+ x (* y side)) :value value :pos [x y]}))
+                      row)))
+                  (apply concat))}))
+
 (defn n-cells
   "Returns the number of cells in the grid."
   [grid]
@@ -68,8 +86,7 @@
         coords (for [a forward]
                  (for [b directed]
                    (if horizontal [b a] [a b])))]
-    (map #(remove nil? (map pos-map %))
-         coords)))
+    (map #(keep pos-map %) coords)))
 
 (defn slide-block-to-edge
   "Slides a block to the edge of the grid."
@@ -146,11 +163,11 @@
      rows)))
 
 ; TODO: return allowed directions (so that no-op dir can't be played)
-(defn impasse?
-  "Returns true if the grid is full and no moves are possible. Also returns true
-  when grid is nil because no move can be made on a nil grid."
-  [grid]
-  (or (not grid)
-      (and (grid-full? grid)
-           (every? #(= grid (move-grid grid %))
-                     [:left :right :down :up]))))
+; (defn impasse?
+;   "Returns true if the grid is full and no moves are possible. Also returns true
+;   when grid is nil because no move can be made on a nil grid."
+;   [grid]
+;   (or (not grid)
+;       (and (grid-full? grid)
+;            (every? #(= grid (move-grid grid %))
+;                      [:left :right :down :up]))))
