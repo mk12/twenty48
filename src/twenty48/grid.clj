@@ -11,14 +11,13 @@
    :counter 0   ; counter for block IDs
    :blocks []}) ; active blocks
 
-(defn grid-from-2d-vec
+(defn matrix->grid
   "Creates a grid from a 2D vector of numbers (0 means empty)."
   [matrix]
-  (let [side (count matrix)
-        nonzero-count (count (remove zero? (flatten matrix)))]
+  (let [side (count matrix)]
     {:side side
      :score 0
-     :counter nonzero-count
+     :counter (* side side)
      :blocks (->> matrix
                   (map-indexed
                    (fn [y row]
@@ -28,6 +27,19 @@
                           {:id (+ x (* y side)) :value value :pos [x y]}))
                       row)))
                   (apply concat))}))
+
+(defn grid->matrix
+  "Converts a grid to a 2D vector of numbers (0 means empty)."
+  [grid]
+  (let [indices (range (:side grid))
+        blocks (:blocks grid)
+        pos-map (zipmap (map :pos blocks) blocks)]
+    (mapv
+     (fn [y]
+       (mapv (fn [x]
+               (or (:value (pos-map [x y])) 0))
+             indices))
+     indices)))
 
 (defn n-cells
   "Returns the number of cells in the grid."
@@ -162,12 +174,10 @@
      initial-accumulator
      rows)))
 
-; TODO: return allowed directions (so that no-op dir can't be played)
-; (defn impasse?
-;   "Returns true if the grid is full and no moves are possible. Also returns true
-;   when grid is nil because no move can be made on a nil grid."
-;   [grid]
-;   (or (not grid)
-;       (and (grid-full? grid)
-;            (every? #(= grid (move-grid grid %))
-;                      [:left :right :down :up]))))
+(defn available-slide-directions
+  "Returns directions where sliding is no a no-op."
+  [grid]
+  (remove
+   #(= (-> grid :blocks set)
+       (-> grid (slide-grid %) (get 0) :blocks set))
+   [:left :right :up :down]))

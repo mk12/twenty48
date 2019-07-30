@@ -10,7 +10,7 @@
 (def g3x3 (empty-grid 3))
 
 (def demo-grid
-  (grid-from-2d-vec
+  (matrix->grid
    [[2 0 2]
     [8 4 4]
     [8 2 0]]))
@@ -19,6 +19,21 @@
   (is (= g0x0 {:side 0 :score 0 :counter 0 :blocks []}))
   (is (= g1x1 {:side 1 :score 0 :counter 0 :blocks []}))
   (is (= g2x2 {:side 2 :score 0 :counter 0 :blocks []})))
+
+(deftest grid-matrix-conversion
+  (are [grid matrix]
+       (= (grid->matrix grid) matrix)
+    g0x0 []
+    g1x1 [[0]]
+    g2x2 [[0 0]
+          [0 0]])
+  (are [matrix]
+       (= matrix (grid->matrix (matrix->grid matrix)))
+    []
+    [[1]]
+    [[1 0 3]
+     [0 2 2]
+     [4 4 8]]))
 
 (deftest counting-cells
   (are [grid n]
@@ -46,7 +61,7 @@
     g2x2 #{[0 0] [0 1] [1 0] [1 1]}
     demo-grid #{[1 0] [2 2]}))
 
-(deftest inserting-a-block
+(deftest inserting-one-block
   (are [grid n result]
        (= (:blocks (insert-one-block grid n)) result)
     g0x0 1 nil
@@ -57,7 +72,7 @@
                 :blocks
                 (->> (map :value))))))
 
-(deftest inserting-blocks
+(deftest inserting-multiple-blocks
   (are [grid nums result]
        (= (->> (insert-blocks grid nums) :blocks (map :value) sort seq)
           result)
@@ -67,44 +82,55 @@
     g2x2 [1 4 3 2] [1 2 3 4]
     demo-grid [100 101] [2 2 2 4 4 8 8 100 101]))
 
-; (deftest moving-grids
-;   (are [grid dir]
-;        (= (move-grid grid dir) grid)
-;     g0x0 :left
-;     g1x1 :down
-;     g2x2 :up
-;     g2x2 :right)
-;   (let [testcase
-;         [[2 0 2
-;           8 4 4
-;           8 2 0]
-;          :right
-;          [0 0 4
-;           8 4 4
-;           8 2 0]
-;          :up
-;          [8 4 4
-;           8 2 4
-;           0 0 0]
-;          :down
-;          [0 0 0
-;           0 4 0
-;           16 2 8]]
-;         expected (take-nth 2 testcase)
-;         directions (take-nth 2 (rest testcase))]
-;     (is (= expected
-;            (map :cells (reductions move-grid demo-grid directions))))))
+(deftest sliding-grids
+  (are [grid dir]
+       (let [[new-grid combined] (slide-grid grid dir)]
+         (and (= grid new-grid) (empty? combined)))
+    g0x0 :left
+    g1x1 :down
+    g2x2 :up
+    g3x3 :right)
+  (are [dir combined-values]
+       (= combined-values
+          (sort (map :value ((slide-grid demo-grid dir) 1))))
+    :right [2 2 4 4]
+    :left [2 2 4 4]
+    :up [8 8]
+    :down [8 8])
+  (let [testcase
+        [[[2 0 2]
+          [8 4 4]
+          [8 2 0]]
+         :right
+         [[0 0 4]
+          [0 8 8]
+          [0 8 2]]
+         :up
+         [[0 16 4]
+          [0 0 8]
+          [0 0 2]]
+         :down
+         [[0 0 4]
+          [0 0 8]
+          [0 16 2]]]
+        expected (take-nth 2 testcase)
+        directions (take-nth 2 (rest testcase))
+        slide (fn [grid dir] ((slide-grid grid dir) 0))]
+    (is (= expected
+           (map grid->matrix
+                (reductions slide demo-grid directions))))))
 
-; TODO
-; seprarte out helpres
-; test 2 2 4 4 -> 0 0 4 8
-;      2 2 2 2 -> 0 0 4 4
-;      etc
-
-; (deftest detecting-impasse
-;   (are [grid result] (= (boolean (impasse? grid)) result)
-;     nil true
-;     g0x0 true
-;     g1x1 false
-;     demo-grid false
-;     (insert-numbers demo-grid [1 1]) true))
+(deftest detecting-available-directions
+  (are [grid dirs]
+       (= dirs (set (available-slide-directions grid)))
+    g0x0 #{}
+    g1x1 #{}
+    demo-grid #{:left :right :up :down}
+    (matrix->grid
+     [[2 4 2]
+      [4 2 4]
+      [2 0 2]]) #{:left :right :down}
+    (matrix->grid
+     [[2 4 2]
+      [4 2 4]
+      [2 4 2]]) #{}))
