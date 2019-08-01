@@ -82,7 +82,6 @@
 ;;;;; 2048 canvas
 
 (def cell-gap 10)
-(def cell-font-size 50)
 (def cell-corner-radius 15)
 
 (defn cell-dimension
@@ -117,6 +116,16 @@
   [value]
   (color/color (if (<= value 4) "#776e65" "#f9f6f2")))
 
+(defn block-font-size
+  "Returns the font size for the given block value."
+  [grid-side value]
+  (* (condp >= value
+       64 55
+       512 45
+       2048 35
+       30)
+     (/ 4.0 grid-side)))
+
 (defn draw-centred-text
   "Draws text centred at the given coordinates."
   [^java.awt.Graphics2D g text x y]
@@ -140,21 +149,22 @@
                      (.fillRoundRect g (x-pos x) (y-pos y)
                                      cell-w cell-h
                                      cell-corner-radius cell-corner-radius))]
-    (.setFont g (f/font :name :sans-serif
-                        :style :bold
-                        :size cell-font-size))
+    (.setFont g (f/font :name :sans-serif :style :bold))
     (.setColor g (block-color-bg 0))
     (doseq [x (range side)
             y (range side)]
       (draw-block g x y))
     (doseq [block (:blocks grid)]
-      (let [[x y] (:pos block)]
+      (let [value (:value block)
+            [x y] (:pos block)]
         (doto g
-          (.setColor (block-color-bg (:value block)))
+          (.setColor (block-color-bg value))
           (draw-block x y)
-          (.setColor (block-color-fg (:value block)))
+          (.setColor (block-color-fg value))
+          (.setFont
+           (.. g getFont (deriveFont (float (block-font-size side value)))))
           (draw-centred-text
-           (str (:value block))
+           (str (* 1 value))
            (+ (x-pos x) (/ cell-w 2))
            (+ (y-pos y) (/ cell-h 2))))))))
 
