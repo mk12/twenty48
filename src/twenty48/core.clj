@@ -1,14 +1,9 @@
-;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2019 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.core
-  (:require [seesaw.core :as s]
-    [twenty48.ui :as ui])
+  (:require [twenty48.system :as s])
   (:gen-class))
 
-;;; TODO
-;;; deploy => :on-close :exit
-;;; app icon
-
 (defn -main [& args]
-  (s/native!)
-  (s/invoke-later (s/show! (ui/frame))))
+  (let [env (if (= (args 0) "dev") :dev :prod)]
+    (s/start (s/system env))))

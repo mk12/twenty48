@@ -1,4 +1,4 @@
-;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2019 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.grid-test
   (:require [clojure.test :refer :all]
@@ -35,24 +35,6 @@
      [0 2 2]
      [4 4 8]]))
 
-(deftest counting-cells
-  (are [grid n]
-       (= (n-cells grid) n)
-    g0x0 0
-    g1x1 1
-    g2x2 4
-    {:side 42} 1764))
-
-(deftest detecting-full-grids
-  (are [grid result]
-       (= (boolean (grid-full? grid)) result)
-    g0x0 true
-    g1x1 false
-    g3x3 false
-    {:side 1 :blocks [1]} true
-    {:side 2 :blocks [1 1 1]} false
-    {:side 2 :blocks [1 1 1 1]} true))
-
 (deftest finding-empty-cells
   (are [grid coord-set]
        (= (set (empty-cell-coords grid)) coord-set)
@@ -78,7 +60,7 @@
           result)
     g0x0 [1] nil
     g1x1 [1] [1]
-    g1x1 [1 1] nil
+    g1x1 [1 1] [1]
     g2x2 [1 4 3 2] [1 2 3 4]
     demo-grid [100 101] [2 2 2 4 4 8 8 100 101]))
 

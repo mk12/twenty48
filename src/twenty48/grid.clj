@@ -1,10 +1,10 @@
-;;; Copyright 2014 Mitchell Kember. Subject to the MIT License.
+;;; Copyright 2019 Mitchell Kember. Subject to the MIT License.
 
 (ns twenty48.grid
   "Implements the 2048 grid model.")
 
 (defn empty-grid
-  "Returns a empty grid with side length n."
+  "Returns an empty grid with side length n."
   [n]
   {:side n      ; side length
    :score 0     ; sum of merged block values
@@ -14,19 +14,22 @@
 (defn matrix->grid
   "Creates a grid from a 2D vector of numbers (0 means empty)."
   [matrix]
-  (let [side (count matrix)]
-    {:side side
+  (let [[counter blocks]
+        (->> matrix
+             (map-indexed
+              (fn [y row] (map-indexed (fn [x value] [[x y] value]) row)))
+             (apply concat)
+             (reduce
+              (fn [[counter blocks] [pos value]]
+                (if (zero? value)
+                  [counter blocks]
+                  [(inc counter)
+                   (conj blocks {:id counter :value value :pos pos})]))
+              [0 []]))]
+    {:side (count matrix)
      :score 0
-     :counter (* side side)
-     :blocks (->> matrix
-                  (map-indexed
-                   (fn [y row]
-                     (keep-indexed
-                      (fn [x value]
-                        (if-not (zero? value)
-                          {:id (+ x (* y side)) :value value :pos [x y]}))
-                      row)))
-                  (apply concat))}))
+     :counter counter
+     :blocks blocks}))
 
 (defn grid->matrix
   "Converts a grid to a 2D vector of numbers (0 means empty)."
@@ -40,16 +43,6 @@
                (or (:value (pos-map [x y])) 0))
              indices))
      indices)))
-
-(defn n-cells
-  "Returns the number of cells in the grid."
-  [grid]
-  (let [s (:side grid)] (* s s)))
-
-(defn grid-full?
-  "Returns true if all cells in the grid are filled, false otherwise."
-  [grid]
-  (= (count (:blocks grid)) (n-cells grid)))
 
 (defn empty-cell-coords
   "Returns the coordinates of empty cells in the grid."
@@ -71,13 +64,13 @@
 
 (defn insert-blocks
   "Inserts a collection of numbers into empty cells in the grid by repeatedly
-  calling insert-one-block. Returns nil if the length of the numbers collection
-  is larger than the number of empty spaces in the grid."
+  calling insert-one-block. Does not insert all of them if there are not enough
+  empty spaces in the grid."
   [grid numbers]
   (reduce
-    (fn [g n] (if g (insert-one-block g n) (reduced nil)))
-    grid
-    numbers))
+   (fn [g n] (or (insert-one-block g n) (reduced g)))
+   grid
+   numbers))
 
 (defn opposite-direction
   "Returns the direction opposite dir."
