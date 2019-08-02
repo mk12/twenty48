@@ -46,7 +46,6 @@
       (-> (str filename "." extension) io/resource io/file i/icon)
       (let [image-2x (-> (str filename "@2x." extension)
                          io/resource
-                         io/file
                          javax.imageio.ImageIO/read)]
         (proxy [javax.swing.ImageIcon] [image-2x]
           (getIconWidth []

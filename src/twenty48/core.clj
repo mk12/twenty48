@@ -5,5 +5,5 @@
   (:gen-class))
 
 (defn -main [& args]
-  (let [env (if (= (args 0) "dev") :dev :prod)]
+  (let [env (if (= (get args 0) "dev") :dev :prod)]
     (s/start (s/system env))))
