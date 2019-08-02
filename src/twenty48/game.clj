@@ -4,6 +4,7 @@
   "Defines the game screen, where all the fun happens."
   (:require [clojure.string :refer [upper-case]]
             [clojure.math.numeric-tower :as math]
+            [seesaw.action :as a]
             [seesaw.bind :as b]
             [seesaw.color :as color]
             [seesaw.core :as s]
@@ -43,16 +44,10 @@
    (take (:at-a-time options)
          (repeatedly #(new-block-number options)))))
 
-(defn move-and-insert
-  "Moves the grid in the direction dir and inserts numbers in empty cells of the
-  grid. The number of insertions is controlled by the option :at-a-time."
-  [options grid dir]
-  (-> grid
-      (r/slide-grid dir)
-      (get 0)
-      (insert-blocks options)))
-
 ;;;;; Game state
+
+(def animation-delay 20)
+(def animation-increment 0.2)
 
 (defn initial-game-state
   "Returns the initial game state."
@@ -70,14 +65,30 @@
   "Updates the given state by moving the grid in the direction dir and adding a
   new block. Returns the new state Switches to the game-over screen when the
   grid is full and no more moves are possible."
-  [sys state dir]
+  [state sys dir]
   (let [options (:options @sys)
-        new-grid (move-and-insert options (:grid state) dir)
-        new-dirs (set (r/available-slide-directions new-grid))]
-    (if (empty? new-dirs)
-      (do (ui/show-view! sys (game-over-view sys (:score new-grid)))
+        old-grid (:grid state)
+        [post-slide-grid combined] (r/slide-grid old-grid dir)
+        grid (insert-blocks post-slide-grid options)
+        dirs (set (r/available-slide-directions grid))]
+    (if (empty? dirs)
+      (do (ui/show-view! sys (game-over-view sys (:score grid)))
           (initial-game-state options))
-      {:grid new-grid :dirs new-dirs})))
+      {:grid grid
+       :dirs dirs
+       :old-grid old-grid
+       :combined combined
+       :animation {:phase :slide, :t 0.0}})))
+
+(defn step-animation
+  "Advances the animation state. Returns nil when the animation is finished."
+  [animation]
+  (when-let [{phase :phase t :t} animation]
+    (if (< t 1)
+      {:phase phase :t (c/clamp (+ t animation-increment) 0 1)}
+      (case phase
+        :slide {:phase :appear, :t 0.0}
+        nil))))
 
 ;;;;; 2048 canvas
 
@@ -135,44 +146,75 @@
                                (.getAscent metrics)))]
     (.drawString g text x' y')))
 
+(defn draw-round-rect-centred
+  "Draws a rounded rectangle centred at the given coordinates."
+  [^java.awt.Graphics2D g x y w h]
+  (.fillRoundRect g (- x (/ w 2)) (- y (/ h 2)) w h
+                  cell-corner-radius cell-corner-radius))
+
+(defn interpolate-blocks
+  "Linearly interpolate block positions between two grids."
+  [t old-blocks new-blocks combined]
+  (let [all-blocks (concat new-blocks combined)
+        id-map (zipmap (map :id all-blocks) all-blocks)]
+    (map
+     (fn [block]
+       (let [[x1 y1] (:pos block)
+             [x2 y2] (:pos (get id-map (:id block)))]
+         (assoc block :pos [(c/interpolate t x1 x2)
+                            (c/interpolate t y1 y2)])))
+     old-blocks)))
+
 (defn paint-canvas
   "Paints the grid in the canvas c with graphics context g."
-  [grid c ^java.awt.Graphics2D g]
-  (let [side (:side grid)
+  [state c ^java.awt.Graphics2D g]
+  (let [grid (:grid state)
+        animation (:animation state)
+        side (:side grid)
         cell-w (cell-dimension (s/width c) side)
         cell-h (cell-dimension (s/height c) side)
         mult-x (+ cell-w cell-gap)
         mult-y (+ cell-h cell-gap)
-        x-pos (fn [x] (+ cell-gap (* x mult-x)))
-        y-pos (fn [y] (+ cell-gap (* y mult-y)))
-        draw-block (fn [g x y]
-                     (.fillRoundRect g (x-pos x) (y-pos y)
-                                     cell-w cell-h
-                                     cell-corner-radius cell-corner-radius))]
+        x-pos (fn [x] (+ cell-gap (/ cell-w 2) (* x mult-x)))
+        y-pos (fn [y] (+ cell-gap (/ cell-h 2) (* y mult-y)))
+        draw-block (fn [g x y m]
+                     (draw-round-rect-centred
+                      g (x-pos x) (y-pos y) (* m cell-w) (* m cell-h)))
+        block-set (if (= (:phase animation) :slide)
+                    (interpolate-blocks (:t animation)
+                                        (:blocks (:old-grid state))
+                                        (:blocks grid)
+                                        (:combined state))
+                    (:blocks grid))
+        block-size-mult (if-not (= (:phase animation) :appear)
+                          (constantly 1)
+                          (let [appear-ids
+                                (set (map :merged-into (:combined state)))]
+                            (fn [block]
+                              (if-not (appear-ids (:id block))
+                                1
+                                (- 1.25 (math/expt (- (:t animation) 0.5) 2))))))]
     (.setFont g (f/font :name :sans-serif :style :bold))
     (.setColor g (block-color-bg 0))
     (doseq [x (range side)
             y (range side)]
-      (draw-block g x y))
-    (doseq [block (:blocks grid)]
+      (draw-block g x y 1))
+    (doseq [block block-set]
       (let [value (:value block)
             [x y] (:pos block)]
         (doto g
           (.setColor (block-color-bg value))
-          (draw-block x y)
+          (draw-block x y (block-size-mult block))
           (.setColor (block-color-fg value))
           (.setFont
            (.. g getFont (deriveFont (float (block-font-size side value)))))
-          (draw-centred-text
-           (str (* 1 value))
-           (+ (x-pos x) (/ cell-w 2))
-           (+ (y-pos y) (/ cell-h 2))))))))
+          (draw-centred-text (str value) (x-pos x) (y-pos y)))))))
 
 (defn make-canvas
   "Creates the main canvas given the state atom."
   [state]
   (s/canvas :background "#bbada0"
-            :paint #(paint-canvas (:grid @state) %1 %2)))
+            :paint #(paint-canvas @state %1 %2)))
 
 ;;;;; Binding and mapping
 
@@ -184,19 +226,32 @@
           (b/transform k)
           (b/property target p)))
 
+(defn perform-slide
+  "Action for when the user presses an arrow key to make the next move. Updates
+  the game state and starts an animation timer."
+  [sys state canvas dir]
+  (when ((:dirs @state) dir)
+    (let [handler (fn [event]
+                    (swap! state update :animation step-animation)
+                    (s/repaint! canvas)
+                    (when-not (:animation @state)
+                      (.. event getSource stop)))
+          timer (javax.swing.Timer. 0 (a/action :handler handler))]
+      (swap! state (fn [s]
+                     (when-let [t (:timer s)] (.stop t))
+                     (-> s (update-state sys dir) (assoc :timer timer))))
+      (doto timer (.setDelay animation-delay) .start))))
+
 (defn map-arrow-keys
   "Maps the arrow keys in the panel so that they update the grid atom and
   repaint the canvas."
   [sys state panel canvas]
-  (doseq [k [:left :right :up :down]]
+  (doseq [dir [:left :right :up :down]]
     (k/map-key
      panel
-     (upper-case (name k))
-     (fn [_]
-       (when ((:dirs @state) k)
-         (swap! state #(update-state sys % k))
-         (s/repaint! canvas)))
-     :scope :descendants)))
+     (upper-case (name dir))
+     (fn [_] (perform-slide sys state canvas dir))
+    :scope :descendants)))
 
 ;;;;; Game view
 

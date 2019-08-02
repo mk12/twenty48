@@ -8,3 +8,13 @@
   "Rounds a number to the nearest integer."
   [x]
   (int (math/round x)))
+
+(defn interpolate
+  "Linearly interpolate between two numbers."
+  [t a b]
+  (+ a (* t (- b a))))
+
+(defn clamp
+  "Clamps a number to a range."
+  [x a b]
+  (max a (min b x)))

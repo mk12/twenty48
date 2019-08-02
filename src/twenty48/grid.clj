@@ -134,7 +134,9 @@
                                  (update :value * 2))]
                [(conj (pop row) new-block)
                 (concat combined
-                        [(assoc block :merged-into counter)
+                        [(assoc block
+                                :merged-into counter
+                                :pos (:pos new-block))
                          (assoc (peek row) :merged-into counter)])
                 (inc counter)
                 false])
